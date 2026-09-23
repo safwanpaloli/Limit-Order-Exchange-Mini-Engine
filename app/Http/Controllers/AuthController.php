@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
+use App\Http\Requests\RegisterRequest;
 
 class AuthController extends Controller
 {
@@ -37,6 +38,23 @@ class AuthController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
+
+        $token = $user->createToken('auth_token')->plainTextToken;
+
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'Bearer',
+        ]);
+    }
+
+    public function register(RegisterRequest $request)
+    {
+        $user = User::create([
+            'name' => $request->name,
+            'email' => $request->email,
+            'password' => \Hash::make($request->password),
+            'balance' => 10000 // Give new users starting fiat balance for testing
+        ]);
 
         $token = $user->createToken('auth_token')->plainTextToken;
 
