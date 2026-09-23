@@ -7,6 +7,11 @@
 @source '../js/**/*.js';
 
 @theme {
+    --color-mushroom: #e1dcd9;
+    --color-elephant: #8f8681;
+    --color-thatch: #a67f78;
+    --color-gunmetal: #32435f;
+
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 }
