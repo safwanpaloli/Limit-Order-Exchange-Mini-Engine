@@ -5,8 +5,8 @@
         <div class="flex items-center space-x-6">
           <h1 class="text-lg font-bold text-gunmetal tracking-tight">Limit Exchange</h1>
           <nav class="hidden sm:flex space-x-6">
+            <router-link to="/trade" class="text-sm font-medium text-elephant hover:text-gunmetal transition-colors" active-class="text-gunmetal font-semibold border-b-2 border-thatch pb-1">Trade Terminal</router-link>
             <router-link to="/profile" class="text-sm font-medium text-elephant hover:text-gunmetal transition-colors" active-class="text-gunmetal font-semibold border-b-2 border-thatch pb-1">Wallet & Orders</router-link>
-            <!-- Trade route placeholder -->
           </nav>
         </div>
         <button @click="logout" class="text-sm px-4 py-2 bg-transparent hover:bg-elephant/10 text-gunmetal font-medium rounded-lg transition-colors border border-elephant/30 cursor-pointer">Logout</button>
@@ -14,39 +14,16 @@
     </header>
 
     <main class="flex-1">
-      <router-view @login="checkAuth"></router-view>
+      <router-view></router-view>
     </main>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import axios from 'axios';
+import { onMounted } from 'vue';
+import { useAuth } from './composables/useAuth';
 
-const router = useRouter();
-const isLoggedIn = ref(false);
-
-const checkAuth = () => {
-  isLoggedIn.value = !!localStorage.getItem('auth_token');
-};
-
-const logout = async () => {
-  try {
-    const token = localStorage.getItem('auth_token');
-    await axios.post('/api/logout', {}, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-  } catch (e) {
-    // ignore
-  } finally {
-    localStorage.removeItem('auth_token');
-    isLoggedIn.value = false;
-    router.push('/');
-  }
-};
+const { isLoggedIn, checkAuth, logout } = useAuth();
 
 onMounted(() => {
   checkAuth();

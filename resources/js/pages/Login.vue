@@ -71,41 +71,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import axios from 'axios';
+import { useAuth } from '../composables/useAuth';
 
-const emit = defineEmits(['login']);
-const router = useRouter();
-
-const email = ref('');
-const password = ref('');
-const showPassword = ref(false);
-const error = ref('');
-const loading = ref(false);
-
-const handleLogin = async () => {
-  loading.value = true;
-  error.value = '';
-  try {
-    const res = await axios.post('/api/login', {
-      email: email.value, 
-      password: password.value
-    });
-    
-    const data = res.data;
-    
-    localStorage.setItem('auth_token', data.access_token);
-    emit('login');
-    router.push('/profile');
-  } catch (e) {
-    if (e.response && e.response.data && e.response.data.message) {
-      error.value = e.response.data.message;
-    } else {
-      error.value = 'An error occurred';
-    }
-  } finally {
-    loading.value = false;
-  }
-};
+const {
+  email,
+  password,
+  showPassword,
+  error,
+  loading,
+  handleLogin
+} = useAuth();
 </script>
