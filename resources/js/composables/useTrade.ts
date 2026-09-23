@@ -1,4 +1,4 @@
-import { ref, computed, Ref, ComputedRef } from 'vue';
+import { ref, computed, watch, Ref, ComputedRef } from 'vue';
 import axios from 'axios';
 import { useToast } from './useToast';
 import type { Orderbook } from '../types';
@@ -7,6 +7,7 @@ import type { Orderbook } from '../types';
  * Composable for managing the trade terminal state, including the orderbook and limit order execution.
  */
 export function useTrade() {
+    const symbol: Ref<string> = ref('BTC');
     const side: Ref<'buy' | 'sell'> = ref('buy');
     const price: Ref<number> = ref(0);
     const amount: Ref<number> = ref(0);
@@ -51,7 +52,7 @@ export function useTrade() {
         loadingOrderbook.value = true;
         try {
             const token = localStorage.getItem('auth_token');
-            const res = await axios.get('/api/orders?symbol=BTC', {
+            const res = await axios.get(`/api/orders?symbol=${symbol.value}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             orderbook.value = res.data;
@@ -65,14 +66,26 @@ export function useTrade() {
     /**
      * Subscribes to the public orderbook channel for real-time WebSocket updates.
      */
-    const listenForOrderbookUpdates = (symbol: string = 'BTC'): void => {
+    let currentChannel: string | null = null;
+    
+    const listenForOrderbookUpdates = (): void => {
         if ((window as any).Echo) {
-            (window as any).Echo.channel(`orderbook.${symbol}`)
+            if (currentChannel) {
+                (window as any).Echo.leave(currentChannel);
+            }
+            
+            currentChannel = `orderbook.${symbol.value}`;
+            (window as any).Echo.channel(currentChannel)
                 .listen('OrderbookUpdated', () => {
                     fetchOrderbook();
                 });
         }
     };
+
+    watch(symbol, () => {
+        fetchOrderbook();
+        listenForOrderbookUpdates();
+    });
 
     /**
      * Validates the order form inputs and opens the confirmation modal if valid.
@@ -95,7 +108,7 @@ export function useTrade() {
         try {
             const token = localStorage.getItem('auth_token');
             await axios.post('/api/orders', {
-                symbol: 'BTC',
+                symbol: symbol.value,
                 side: side.value,
                 price: price.value,
                 amount: amount.value
@@ -118,6 +131,7 @@ export function useTrade() {
     };
 
     return {
+        symbol,
         side,
         price,
         amount,

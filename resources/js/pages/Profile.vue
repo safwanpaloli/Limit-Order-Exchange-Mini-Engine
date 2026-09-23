@@ -33,12 +33,12 @@
               ]"
               buttonClass="min-w-[120px]"
             />
-            <CustomSelect 
+              <CustomSelect 
               v-model="filterStatus" 
               :options="[
                 { value: 'all', label: 'All Statuses' },
                 { value: '1', label: 'Open' },
-                { value: '0', label: 'Completed' },
+                { value: '2', label: 'Completed' },
                 { value: '3', label: 'Cancelled' }
               ]"
               buttonClass="min-w-[140px]"
@@ -73,7 +73,7 @@
                 <td class="py-4 px-6 text-sm text-gunmetal">{{ parseFloat(order.amount).toFixed(8) }}</td>
                 <td class="py-4 px-6 text-sm font-medium">
                   <span v-if="order.status === 1" class="px-2 py-1 bg-elephant/10 text-gunmetal rounded text-xs">Open</span>
-                  <span v-else-if="order.status === 0" class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Completed</span>
+                  <span v-else-if="order.status === 2" class="px-2 py-1 bg-green-100 text-green-700 rounded text-xs">Completed</span>
                   <span v-else class="px-2 py-1 bg-thatch/10 text-thatch rounded text-xs">Cancelled</span>
                 </td>
                 <td class="py-4 px-6 text-right">

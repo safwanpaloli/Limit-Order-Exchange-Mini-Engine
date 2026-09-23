@@ -8,6 +8,7 @@ use App\Models\Asset;
 use App\Models\Trade;
 use App\Events\OrderbookUpdated;
 use App\Events\WalletUpdated;
+use App\Events\OrderMatched;
 use App\Repositories\Contracts\OrderRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -165,7 +166,7 @@ class OrderRepository implements OrderRepositoryInterface
             // Update maker order
             $makerOrder->amount -= $fillAmount;
             if ($makerOrder->amount <= 0) {
-                $makerOrder->status = 0; // Completed
+                $makerOrder->status = 2; // Filled
             }
             $makerOrder->save();
 
@@ -176,7 +177,7 @@ class OrderRepository implements OrderRepositoryInterface
         if ($remainingAmount < $takerOrder->amount) {
             $takerOrder->amount = $remainingAmount;
             if ($remainingAmount <= 0) {
-                $takerOrder->status = 0; // Completed
+                $takerOrder->status = 2; // Filled
             }
             $takerOrder->save();
         }
@@ -186,14 +187,22 @@ class OrderRepository implements OrderRepositoryInterface
     {
         $takerUser = DB::table('users')->where('id', $takerOrder->user_id)->lockForUpdate()->first();
         $makerUser = DB::table('users')->where('id', $makerOrder->user_id)->lockForUpdate()->first();
+        
+        $grossUsdValue = $fillAmount * $executionPrice;
 
         if ($takerOrder->side === 'buy') {
             // Taker is Buyer: pays fiat (already deducted upfront), gets crypto
             // Maker is Seller: pays crypto (already locked), gets fiat
             
-            // Maker gets fiat
+            $makerFeeUsd = $grossUsdValue * 0.015;
+            $makerNetUsd = $grossUsdValue - $makerFeeUsd;
+            
+            $takerFeeCrypto = $fillAmount * 0.015;
+            $takerNetCrypto = $fillAmount - $takerFeeCrypto;
+
+            // Maker gets fiat (net of fee)
             DB::table('users')->where('id', $makerUser->id)->update([
-                'balance' => $makerUser->balance + ($fillAmount * $executionPrice)
+                'balance' => $makerUser->balance + $makerNetUsd
             ]);
 
             // Maker's crypto is unlocked and permanently removed
@@ -204,7 +213,7 @@ class OrderRepository implements OrderRepositoryInterface
             $makerAsset->locked_amount -= $fillAmount;
             $makerAsset->save();
 
-            // Taker gets crypto
+            // Taker gets crypto (net of fee)
             $takerAsset = Asset::where('user_id', $takerUser->id)
                 ->where('symbol', $takerOrder->symbol)
                 ->lockForUpdate()
@@ -218,24 +227,47 @@ class OrderRepository implements OrderRepositoryInterface
                     'locked_amount' => 0
                 ]);
             }
-            $takerAsset->amount += $fillAmount;
+            $takerAsset->amount += $takerNetCrypto;
             $takerAsset->save();
 
             // Refund for Price Improvement
-            // Taker paid `takerPrice`, but execution was at `makerPrice`. Refund the difference.
             $priceDiff = $takerOrder->price - $executionPrice;
             if ($priceDiff > 0) {
                 DB::table('users')->where('id', $takerUser->id)->update([
-                    'balance' => $takerUser->balance + ($fillAmount * $priceDiff)
+                    'balance' => DB::raw("balance + " . ($fillAmount * $priceDiff))
                 ]);
             }
+            
+            // Dispatch OrderMatched Events
+            event(new OrderMatched($takerOrder->user_id, [
+                'symbol' => $takerOrder->symbol,
+                'side' => 'buy',
+                'price' => $executionPrice,
+                'amount' => $fillAmount,
+                'fee' => $takerFeeCrypto . ' ' . $takerOrder->symbol
+            ]));
+            
+            event(new OrderMatched($makerOrder->user_id, [
+                'symbol' => $makerOrder->symbol,
+                'side' => 'sell',
+                'price' => $executionPrice,
+                'amount' => $fillAmount,
+                'fee' => $makerFeeUsd . ' USD'
+            ]));
+
         } else {
             // Taker is Seller: pays crypto (already locked upfront), gets fiat
             // Maker is Buyer: pays fiat (already deducted), gets crypto
 
-            // Taker gets fiat
+            $takerFeeUsd = $grossUsdValue * 0.015;
+            $takerNetUsd = $grossUsdValue - $takerFeeUsd;
+            
+            $makerFeeCrypto = $fillAmount * 0.015;
+            $makerNetCrypto = $fillAmount - $makerFeeCrypto;
+
+            // Taker gets fiat (net of fee)
             DB::table('users')->where('id', $takerUser->id)->update([
-                'balance' => $takerUser->balance + ($fillAmount * $executionPrice)
+                'balance' => $takerUser->balance + $takerNetUsd
             ]);
 
             // Taker's crypto is unlocked and permanently removed
@@ -246,7 +278,7 @@ class OrderRepository implements OrderRepositoryInterface
             $takerAsset->locked_amount -= $fillAmount;
             $takerAsset->save();
 
-            // Maker gets crypto
+            // Maker gets crypto (net of fee)
             $makerAsset = Asset::where('user_id', $makerUser->id)
                 ->where('symbol', $takerOrder->symbol)
                 ->lockForUpdate()
@@ -260,11 +292,32 @@ class OrderRepository implements OrderRepositoryInterface
                     'locked_amount' => 0
                 ]);
             }
-            $makerAsset->amount += $fillAmount;
+            $makerAsset->amount += $makerNetCrypto;
             $makerAsset->save();
+            
+            // Refund for Price Improvement for Maker (not applicable since Maker set the price, but Taker might sell lower than Maker's bid)
+            // Wait, if Taker sells lower than Maker's bid, the execution price IS the Maker's bid.
+            // So no refund needed.
+
+            // Dispatch OrderMatched Events
+            event(new OrderMatched($takerOrder->user_id, [
+                'symbol' => $takerOrder->symbol,
+                'side' => 'sell',
+                'price' => $executionPrice,
+                'amount' => $fillAmount,
+                'fee' => $takerFeeUsd . ' USD'
+            ]));
+            
+            event(new OrderMatched($makerOrder->user_id, [
+                'symbol' => $makerOrder->symbol,
+                'side' => 'buy',
+                'price' => $executionPrice,
+                'amount' => $fillAmount,
+                'fee' => $makerFeeCrypto . ' ' . $makerOrder->symbol
+            ]));
         }
 
-        event(new WalletUpdated($takerUser->id));
-        event(new WalletUpdated($makerUser->id));
+        event(new WalletUpdated($takerOrder->user_id));
+        event(new WalletUpdated($makerOrder->user_id));
     }
 }

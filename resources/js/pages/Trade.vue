@@ -4,7 +4,17 @@
     <div class="w-full lg:w-2/3 flex flex-col gap-6">
       <div class="bg-white/60 border border-elephant/20 rounded-lg p-6 shadow-sm flex-1">
         <div class="flex items-center justify-between mb-6">
-          <h2 class="text-xl font-bold text-gunmetal tracking-tight">Orderbook <span class="text-sm font-normal text-elephant ml-2">BTC/USD</span></h2>
+          <div class="flex items-center gap-4">
+            <h2 class="text-xl font-bold text-gunmetal tracking-tight">Orderbook</h2>
+            <CustomSelect 
+              v-model="symbol" 
+              :options="[
+                { value: 'BTC', label: 'BTC/USD' },
+                { value: 'ETH', label: 'ETH/USD' }
+              ]"
+              buttonClass="min-w-[120px] !py-1 !text-sm"
+            />
+          </div>
           <button @click="fetchOrderbook" class="text-sm text-elephant hover:text-gunmetal transition-colors flex items-center gap-1 cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4">
               <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
@@ -84,7 +94,7 @@
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-elephant mb-1.5">Amount (BTC)</label>
+            <label class="block text-sm font-medium text-elephant mb-1.5">Amount ({{ symbol }})</label>
             <input v-model.number="amount" type="number" step="0.00000001" min="0.00000001" class="w-full bg-white border border-elephant/30 rounded-lg px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all font-mono" required>
           </div>
           
@@ -110,7 +120,7 @@
     <OrderModal
       :show="showModal"
       title="Confirm Order"
-      :actionText="`${side} BTC`"
+      :actionText="`${side} ${symbol}`"
       :actionSide="side"
       :price="price"
       :amount="amount"
@@ -128,9 +138,11 @@
 <script setup>
 import { onMounted } from 'vue';
 import OrderModal from '../components/OrderModal.vue';
+import CustomSelect from '../components/CustomSelect.vue';
 import { useTrade } from '../composables/useTrade';
 
 const {
+  symbol,
   side,
   price,
   amount,
@@ -149,6 +161,6 @@ const {
 
 onMounted(() => {
   fetchOrderbook();
-  listenForOrderbookUpdates('BTC');
+  listenForOrderbookUpdates();
 });
 </script>

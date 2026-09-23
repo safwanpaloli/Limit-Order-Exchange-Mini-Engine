@@ -82,12 +82,28 @@ export function useProfile() {
     };
 
     /**
-     * Subscribes to the user's specific wallet channel for real-time WebSocket updates.
+     * Subscribes to the user's specific private channel for real-time WebSocket updates.
      */
     const listenForWalletUpdates = (userId: number): void => {
         if ((window as any).Echo) {
-            (window as any).Echo.channel(`wallet.${userId}`)
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                (window as any).Echo.connector.options.auth = {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                };
+                (window as any).Echo.connector.options.authEndpoint = '/api/broadcasting/auth';
+            }
+
+            (window as any).Echo.private(`user.${userId}`)
                 .listen('WalletUpdated', () => {
+                    fetchProfile();
+                })
+                .listen('OrderMatched', (e: any) => {
+                    const { success } = useToast();
+                    const trade = e.tradeData;
+                    success(`Trade Filled: ${trade.side.toUpperCase()} ${parseFloat(trade.amount)} ${trade.symbol} @ $${parseFloat(trade.price)}`);
                     fetchProfile();
                 });
         }
