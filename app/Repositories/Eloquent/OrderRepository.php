@@ -5,6 +5,7 @@ namespace App\Repositories\Eloquent;
 use App\Models\User;
 use App\Models\Order;
 use App\Models\Asset;
+use App\Models\Trade;
 use App\Repositories\Contracts\OrderRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -58,7 +59,7 @@ class OrderRepository implements OrderRepositoryInterface
                 $asset->save();
             }
 
-            return Order::create([
+            $order = Order::create([
                 'user_id' => $user->id,
                 'symbol' => $symbol,
                 'side' => $side,
@@ -66,6 +67,10 @@ class OrderRepository implements OrderRepositoryInterface
                 'amount' => $amount,
                 'status' => 1
             ]);
+
+            $this->matchOrder($order);
+
+            return $order;
         });
     }
 
@@ -104,10 +109,151 @@ class OrderRepository implements OrderRepositoryInterface
                 $asset->save();
             }
 
-            $lockedOrder->status = 3;
+            $lockedOrder->status = 3; // 3 = Cancelled
             $lockedOrder->save();
 
             return $lockedOrder;
         });
+    }
+
+    protected function matchOrder(Order $takerOrder)
+    {
+        $remainingAmount = $takerOrder->amount;
+
+        $query = Order::where('symbol', $takerOrder->symbol)
+            ->where('status', 1)
+            ->where('side', $takerOrder->side === 'buy' ? 'sell' : 'buy');
+
+        if ($takerOrder->side === 'buy') {
+            $query->where('price', '<=', $takerOrder->price)
+                  ->orderBy('price', 'asc');
+        } else {
+            $query->where('price', '>=', $takerOrder->price)
+                  ->orderBy('price', 'desc');
+        }
+        
+        $query->orderBy('created_at', 'asc'); // FIFO
+
+        $makerOrders = $query->lockForUpdate()->get();
+
+        foreach ($makerOrders as $makerOrder) {
+            if ($remainingAmount <= 0) break;
+
+            $fillAmount = min($remainingAmount, $makerOrder->amount);
+            $executionPrice = $makerOrder->price;
+
+            // Execute Trade
+            Trade::create([
+                'maker_order_id' => $makerOrder->id,
+                'taker_order_id' => $takerOrder->id,
+                'symbol' => $takerOrder->symbol,
+                'price' => $executionPrice,
+                'amount' => $fillAmount
+            ]);
+
+            // Settlement
+            $this->settleTrade($takerOrder, $makerOrder, $fillAmount, $executionPrice);
+
+            // Update maker order
+            $makerOrder->amount -= $fillAmount;
+            if ($makerOrder->amount <= 0) {
+                $makerOrder->status = 0; // Completed
+            }
+            $makerOrder->save();
+
+            $remainingAmount -= $fillAmount;
+        }
+
+        // Update taker order
+        if ($remainingAmount < $takerOrder->amount) {
+            $takerOrder->amount = $remainingAmount;
+            if ($remainingAmount <= 0) {
+                $takerOrder->status = 0; // Completed
+            }
+            $takerOrder->save();
+        }
+    }
+
+    protected function settleTrade(Order $takerOrder, Order $makerOrder, $fillAmount, $executionPrice)
+    {
+        $takerUser = DB::table('users')->where('id', $takerOrder->user_id)->lockForUpdate()->first();
+        $makerUser = DB::table('users')->where('id', $makerOrder->user_id)->lockForUpdate()->first();
+
+        if ($takerOrder->side === 'buy') {
+            // Taker is Buyer: pays fiat (already deducted upfront), gets crypto
+            // Maker is Seller: pays crypto (already locked), gets fiat
+            
+            // Maker gets fiat
+            DB::table('users')->where('id', $makerUser->id)->update([
+                'balance' => $makerUser->balance + ($fillAmount * $executionPrice)
+            ]);
+
+            // Maker's crypto is unlocked and permanently removed
+            $makerAsset = Asset::where('user_id', $makerUser->id)
+                ->where('symbol', $takerOrder->symbol)
+                ->lockForUpdate()
+                ->first();
+            $makerAsset->locked_amount -= $fillAmount;
+            $makerAsset->save();
+
+            // Taker gets crypto
+            $takerAsset = Asset::where('user_id', $takerUser->id)
+                ->where('symbol', $takerOrder->symbol)
+                ->lockForUpdate()
+                ->first();
+                
+            if (!$takerAsset) {
+                $takerAsset = Asset::create([
+                    'user_id' => $takerUser->id, 
+                    'symbol' => $takerOrder->symbol, 
+                    'amount' => 0, 
+                    'locked_amount' => 0
+                ]);
+            }
+            $takerAsset->amount += $fillAmount;
+            $takerAsset->save();
+
+            // Refund for Price Improvement
+            // Taker paid `takerPrice`, but execution was at `makerPrice`. Refund the difference.
+            $priceDiff = $takerOrder->price - $executionPrice;
+            if ($priceDiff > 0) {
+                DB::table('users')->where('id', $takerUser->id)->update([
+                    'balance' => $takerUser->balance + ($fillAmount * $priceDiff)
+                ]);
+            }
+        } else {
+            // Taker is Seller: pays crypto (already locked upfront), gets fiat
+            // Maker is Buyer: pays fiat (already deducted), gets crypto
+
+            // Taker gets fiat
+            DB::table('users')->where('id', $takerUser->id)->update([
+                'balance' => $takerUser->balance + ($fillAmount * $executionPrice)
+            ]);
+
+            // Taker's crypto is unlocked and permanently removed
+            $takerAsset = Asset::where('user_id', $takerUser->id)
+                ->where('symbol', $takerOrder->symbol)
+                ->lockForUpdate()
+                ->first();
+            $takerAsset->locked_amount -= $fillAmount;
+            $takerAsset->save();
+
+            // Maker gets crypto
+            $makerAsset = Asset::where('user_id', $makerUser->id)
+                ->where('symbol', $takerOrder->symbol)
+                ->lockForUpdate()
+                ->first();
+                
+            if (!$makerAsset) {
+                $makerAsset = Asset::create([
+                    'user_id' => $makerUser->id, 
+                    'symbol' => $takerOrder->symbol, 
+                    'amount' => 0, 
+                    'locked_amount' => 0
+                ]);
+            }
+            $makerAsset->amount += $fillAmount;
+            $makerAsset->save();
+        }
     }
 }
