@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use App\Models\Order;
 
 class ProfileController extends Controller
 {
@@ -11,6 +12,11 @@ class ProfileController extends Controller
         $user = $request->user();
         $user->load('assets');
         
+        $orders = Order::where('user_id', $user->id)
+            ->where('status', 1)
+            ->orderBy('created_at', 'desc')
+            ->get();
+        
         return response()->json([
             'user' => [
                 'id' => $user->id,
@@ -18,7 +24,8 @@ class ProfileController extends Controller
                 'email' => $user->email,
                 'balance' => $user->balance,
             ],
-            'assets' => $user->assets
+            'assets' => $user->assets,
+            'orders' => $orders
         ]);
     }
 }

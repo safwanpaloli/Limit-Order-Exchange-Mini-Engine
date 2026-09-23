@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 
 import Login from './pages/Login.vue';
 import Profile from './pages/Profile.vue';
+import Trade from './pages/Trade.vue';
 
 const routes = [
     {
@@ -16,7 +17,12 @@ const routes = [
         component: Profile,
         meta: { requiresAuth: true }
     },
-    // We'll add the Trade route in Phase 3
+    {
+        path: '/trade',
+        name: 'Trade',
+        component: Trade,
+        meta: { requiresAuth: true }
+    }
 ];
 
 const router = createRouter({
