@@ -142,11 +142,13 @@ const {
   loadingOrderbook,
   totalValue,
   fetchOrderbook,
+  listenForOrderbookUpdates,
   confirmOrder,
   executeOrder
 } = useTrade();
 
 onMounted(() => {
   fetchOrderbook();
+  listenForOrderbookUpdates('BTC');
 });
 </script>

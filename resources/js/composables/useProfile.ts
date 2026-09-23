@@ -19,7 +19,7 @@ export function useProfile() {
     /**
      * Fetches the authenticated user's profile, including their wallet balances and active orders.
      */
-    const fetchProfile = async (): Promise<void> => {
+    const fetchProfile = async (): Promise<number | void> => {
         loading.value = true;
         try {
             const token = localStorage.getItem('auth_token');
@@ -31,6 +31,8 @@ export function useProfile() {
             user.value = data.user;
             assets.value = data.assets;
             orders.value = data.orders || [];
+            
+            return data.user.id;
         } catch (e: any) {
             if (e.response && e.response.status === 401) {
                 localStorage.removeItem('auth_token');
@@ -40,6 +42,18 @@ export function useProfile() {
             }
         } finally {
             loading.value = false;
+        }
+    };
+
+    /**
+     * Subscribes to the user's specific wallet channel for real-time WebSocket updates.
+     */
+    const listenForWalletUpdates = (userId: number): void => {
+        if ((window as any).Echo) {
+            (window as any).Echo.channel(`wallet.${userId}`)
+                .listen('WalletUpdated', () => {
+                    fetchProfile();
+                });
         }
     };
 
@@ -85,6 +99,7 @@ export function useProfile() {
         showCancelModal,
         orderToCancel,
         fetchProfile,
+        listenForWalletUpdates,
         confirmCancel,
         executeCancel
     };
