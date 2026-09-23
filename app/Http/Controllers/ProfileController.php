@@ -12,10 +12,19 @@ class ProfileController extends Controller
         $user = $request->user();
         $user->load('assets');
         
-        $orders = Order::where('user_id', $user->id)
-            ->where('status', 1)
-            ->orderBy('created_at', 'desc')
-            ->get();
+        $query = Order::where('user_id', $user->id)
+            ->orderBy('created_at', 'desc');
+
+        if ($request->filled('side') && $request->side !== 'all') {
+            $query->where('side', $request->side);
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        $perPage = $request->input('per_page', 10);
+        $orders = $query->paginate($perPage);
         
         return response()->json([
             'user' => [

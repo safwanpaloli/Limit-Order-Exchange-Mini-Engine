@@ -38,19 +38,19 @@
           <p class="text-elephant mt-2">{{ isRegistering ? 'Sign up to start trading.' : 'Sign in to access your trading dashboard.' }}</p>
         </div>
 
-        <form @submit.prevent="isRegistering ? handleRegister() : handleLogin()" class="space-y-5 bg-white/60 p-8 rounded-2xl border border-elephant/10 shadow-sm">
+        <form @submit.prevent="isRegistering ? handleRegister() : handleLogin()" class="space-y-5 bg-white/60 p-8 rounded-lg border border-elephant/10 shadow-sm">
           <div v-if="isRegistering">
             <label class="block text-sm font-medium text-elephant mb-1.5">Full Name</label>
-            <input v-model="name" type="text" placeholder="Enter your full name" class="w-full bg-white border border-elephant/30 rounded-xl px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all placeholder:text-elephant/50" required>
+            <input v-model="name" type="text" placeholder="Enter your full name" class="w-full bg-white border border-elephant/30 rounded-lg px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all placeholder:text-elephant/50" required>
           </div>
           <div>
             <label class="block text-sm font-medium text-elephant mb-1.5">Email address</label>
-            <input v-model="email" type="email" placeholder="Enter your email" class="w-full bg-white border border-elephant/30 rounded-xl px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all placeholder:text-elephant/50" required>
+            <input v-model="email" type="email" placeholder="Enter your email" class="w-full bg-white border border-elephant/30 rounded-lg px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all placeholder:text-elephant/50" required>
           </div>
           <div>
             <label class="block text-sm font-medium text-elephant mb-1.5">Password</label>
             <div class="relative">
-              <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="Enter your password" class="w-full bg-white border border-elephant/30 rounded-xl px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all placeholder:text-elephant/50" required>
+              <input v-model="password" :type="showPassword ? 'text' : 'password'" placeholder="Enter your password" class="w-full bg-white border border-elephant/30 rounded-lg px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all placeholder:text-elephant/50" required>
               <button type="button" @click="showPassword = !showPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-elephant hover:text-gunmetal transition-colors">
                 <svg v-if="!showPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -65,7 +65,7 @@
           <div v-if="isRegistering">
             <label class="block text-sm font-medium text-elephant mb-1.5">Confirm Password</label>
             <div class="relative">
-              <input v-model="password_confirmation" :type="showConfirmPassword ? 'text' : 'password'" placeholder="Confirm your password" class="w-full bg-white border border-elephant/30 rounded-xl px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all placeholder:text-elephant/50" required>
+              <input v-model="password_confirmation" :type="showConfirmPassword ? 'text' : 'password'" placeholder="Confirm your password" class="w-full bg-white border border-elephant/30 rounded-lg px-4 py-3 text-gunmetal focus:outline-none focus:ring-2 focus:ring-thatch focus:border-transparent transition-all placeholder:text-elephant/50" required>
               <button type="button" @click="showConfirmPassword = !showConfirmPassword" class="absolute right-3 top-1/2 -translate-y-1/2 text-elephant hover:text-gunmetal transition-colors">
                 <svg v-if="!showConfirmPassword" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
@@ -80,7 +80,7 @@
           <div v-if="error" class="text-thatch text-sm bg-thatch/10 p-3 rounded-lg border border-thatch/20">
             {{ error }}
           </div>
-          <button :disabled="loading" class="w-full bg-gunmetal hover:bg-gunmetal/90 text-white font-medium py-3 rounded-xl transition-all cursor-pointer disabled:opacity-50 shadow-md shadow-gunmetal/20 mt-4">
+          <button :disabled="loading" class="w-full bg-gunmetal hover:bg-gunmetal/90 text-white font-medium py-3 rounded-lg transition-all cursor-pointer disabled:opacity-50 shadow-md shadow-gunmetal/20 mt-4">
             {{ loading ? 'Processing...' : (isRegistering ? 'Register' : 'Login') }}
           </button>
           

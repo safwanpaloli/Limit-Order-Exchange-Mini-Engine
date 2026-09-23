@@ -1,5 +1,6 @@
 import { ref, computed, Ref, ComputedRef } from 'vue';
 import axios from 'axios';
+import { useToast } from './useToast';
 import type { Orderbook } from '../types';
 
 /**
@@ -11,7 +12,6 @@ export function useTrade() {
     const amount: Ref<number> = ref(0);
     const submitting: Ref<boolean> = ref(false);
     const error: Ref<string> = ref('');
-    const success: Ref<string> = ref('');
     const showModal: Ref<boolean> = ref(false);
     const orderbook: Ref<Orderbook> = ref({ buy: [], sell: [] });
     const loadingOrderbook: Ref<boolean> = ref(true);
@@ -21,6 +21,27 @@ export function useTrade() {
      */
     const totalValue: ComputedRef<number> = computed(() => {
         return (price.value || 0) * (amount.value || 0);
+    });
+
+    /**
+     * Computes the orderbook with cumulative volume for depth preview.
+     */
+    const orderbookWithCumulative = computed(() => {
+        let buyCum = 0;
+        const buy = orderbook.value.buy.map(o => {
+            buyCum += parseFloat(o.amount as unknown as string);
+            return { ...o, cumulative: buyCum };
+        });
+
+        let sellCum = 0;
+        // Asks are usually accumulated from lowest price (which is at the end if sorted desc)
+        // For simplicity, we accumulate top to bottom.
+        const sell = orderbook.value.sell.map(o => {
+            sellCum += parseFloat(o.amount as unknown as string);
+            return { ...o, cumulative: sellCum };
+        });
+
+        return { buy, sell };
     });
 
     /**
@@ -58,7 +79,6 @@ export function useTrade() {
      */
     const confirmOrder = (): void => {
         error.value = '';
-        success.value = '';
         if (price.value > 0 && amount.value > 0) {
             showModal.value = true;
         }
@@ -68,9 +88,9 @@ export function useTrade() {
      * Submits the limit order to the backend API and refreshes the orderbook upon success.
      */
     const executeOrder = async (): Promise<void> => {
+        const { success, error: toastError } = useToast();
         submitting.value = true;
         error.value = '';
-        success.value = '';
         
         try {
             const token = localStorage.getItem('auth_token');
@@ -83,17 +103,15 @@ export function useTrade() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
-            success.value = 'Order placed successfully!';
+            success('Order placed successfully!');
             price.value = 0;
             amount.value = 0;
             showModal.value = false;
             
             fetchOrderbook();
-            
-            setTimeout(() => { success.value = ''; }, 3000);
         } catch (e: any) {
             showModal.value = false;
-            error.value = e.response?.data?.message || 'Failed to place order.';
+            toastError(e.response?.data?.message || 'Failed to place order.');
         } finally {
             submitting.value = false;
         }
@@ -105,9 +123,9 @@ export function useTrade() {
         amount,
         submitting,
         error,
-        success,
         showModal,
         orderbook,
+        orderbookWithCumulative,
         loadingOrderbook,
         totalValue,
         fetchOrderbook,
