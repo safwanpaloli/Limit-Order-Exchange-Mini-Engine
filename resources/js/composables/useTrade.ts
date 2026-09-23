@@ -42,6 +42,18 @@ export function useTrade() {
     };
 
     /**
+     * Subscribes to the public orderbook channel for real-time WebSocket updates.
+     */
+    const listenForOrderbookUpdates = (symbol: string = 'BTC'): void => {
+        if ((window as any).Echo) {
+            (window as any).Echo.channel(`orderbook.${symbol}`)
+                .listen('OrderbookUpdated', () => {
+                    fetchOrderbook();
+                });
+        }
+    };
+
+    /**
      * Validates the order form inputs and opens the confirmation modal if valid.
      */
     const confirmOrder = (): void => {
@@ -99,6 +111,7 @@ export function useTrade() {
         loadingOrderbook,
         totalValue,
         fetchOrderbook,
+        listenForOrderbookUpdates,
         confirmOrder,
         executeOrder
     };

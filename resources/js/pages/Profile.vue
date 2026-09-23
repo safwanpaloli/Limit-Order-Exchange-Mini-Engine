@@ -91,11 +91,15 @@ const {
   showCancelModal,
   orderToCancel,
   fetchProfile,
+  listenForWalletUpdates,
   confirmCancel,
   executeCancel
 } = useProfile();
 
-onMounted(() => {
-  fetchProfile();
+onMounted(async () => {
+  const userId = await fetchProfile();
+  if (userId) {
+    listenForWalletUpdates(userId);
+  }
 });
 </script>

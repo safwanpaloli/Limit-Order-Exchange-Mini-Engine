@@ -6,6 +6,8 @@ use App\Models\User;
 use App\Models\Order;
 use App\Models\Asset;
 use App\Models\Trade;
+use App\Events\OrderbookUpdated;
+use App\Events\WalletUpdated;
 use App\Repositories\Contracts\OrderRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Exception;
@@ -70,6 +72,9 @@ class OrderRepository implements OrderRepositoryInterface
 
             $this->matchOrder($order);
 
+            event(new OrderbookUpdated($symbol));
+            event(new WalletUpdated($user->id));
+
             return $order;
         });
     }
@@ -111,6 +116,9 @@ class OrderRepository implements OrderRepositoryInterface
 
             $lockedOrder->status = 3; // 3 = Cancelled
             $lockedOrder->save();
+
+            event(new OrderbookUpdated($lockedOrder->symbol));
+            event(new WalletUpdated($user->id));
 
             return $lockedOrder;
         });
@@ -255,5 +263,8 @@ class OrderRepository implements OrderRepositoryInterface
             $makerAsset->amount += $fillAmount;
             $makerAsset->save();
         }
+
+        event(new WalletUpdated($takerUser->id));
+        event(new WalletUpdated($makerUser->id));
     }
 }
