@@ -1,12 +1,12 @@
 <template>
   <div v-if="show" class="fixed inset-0 z-50 flex items-center justify-center bg-gunmetal/40 backdrop-blur-sm p-4">
-    <div class="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-elephant/10 transform transition-all">
+    <div class="bg-white rounded-lg shadow-xl w-full max-w-sm overflow-hidden border border-elephant/10 transform transition-all">
       <div class="p-6 border-b border-elephant/10">
         <h3 class="text-xl font-bold text-gunmetal tracking-tight text-center">{{ title }}</h3>
       </div>
       <div class="p-6 space-y-4 text-center text-gunmetal">
         <p v-if="message" class="mb-4 text-sm font-medium">{{ message }}</p>
-        <div :class="message ? 'bg-mushroom/20 p-4 rounded-xl border border-elephant/10 flex flex-col gap-2 text-sm text-left' : 'space-y-4'">
+        <div :class="message ? 'bg-mushroom/20 p-4 rounded-lg border border-elephant/10 flex flex-col gap-2 text-sm text-left' : 'space-y-4'">
           <div class="flex justify-between items-center text-sm">
             <span class="text-elephant font-medium">Action</span>
             <span :class="actionSide === 'buy' ? 'text-green-600' : 'text-thatch'" class="font-bold uppercase tracking-wider">{{ actionText }}</span>
@@ -26,10 +26,10 @@
         </div>
       </div>
       <div class="p-6 bg-slate-50 border-t border-elephant/10 flex gap-4">
-        <button @click="$emit('close')" :disabled="isConfirming" class="flex-1 py-3 text-sm font-bold text-elephant hover:text-gunmetal hover:bg-elephant/10 rounded-xl transition-colors disabled:opacity-50 cursor-pointer">
+        <button @click="$emit('close')" :disabled="isConfirming" class="flex-1 py-3 text-sm font-bold text-elephant hover:text-gunmetal hover:bg-elephant/10 rounded-lg transition-colors disabled:opacity-50 cursor-pointer">
           {{ cancelText }}
         </button>
-        <button @click="$emit('confirm')" :disabled="isConfirming" :class="confirmBtnClass" class="flex-1 py-3 text-sm font-bold text-white rounded-xl transition-all shadow-md disabled:opacity-50 cursor-pointer">
+        <button @click="$emit('confirm')" :disabled="isConfirming" :class="confirmBtnClass" class="flex-1 py-3 text-sm font-bold text-white rounded-lg transition-all shadow-md disabled:opacity-50 cursor-pointer">
           {{ isConfirming ? confirmingText : confirmText }}
         </button>
       </div>

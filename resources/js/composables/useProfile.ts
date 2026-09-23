@@ -1,6 +1,7 @@
-import { ref, Ref } from 'vue';
+import { ref, computed, watch, Ref, ComputedRef } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
+import { useToast } from './useToast';
 import type { User, Asset, Order } from '../types';
 
 /**
@@ -15,22 +16,56 @@ export function useProfile() {
     const cancelling: Ref<number | null> = ref(null);
     const showCancelModal: Ref<boolean> = ref(false);
     const orderToCancel: Ref<Order | null> = ref(null);
+    const filterSide: Ref<string> = ref('all');
+    const filterStatus: Ref<string> = ref('all');
+    const currentPage: Ref<number> = ref(1);
+    const perPage: Ref<number> = ref(10);
+    const totalPages: Ref<number> = ref(1);
+
+    let isFetching = false;
+
+    watch([filterSide, filterStatus, perPage], () => {
+        currentPage.value = 1;
+        if (!isFetching) fetchProfile();
+    });
+
+    watch(currentPage, () => {
+        if (!isFetching) fetchProfile();
+    });
+
+    const nextPage = (): void => {
+        if (currentPage.value < totalPages.value) currentPage.value++;
+    };
+
+    const prevPage = (): void => {
+        if (currentPage.value > 1) currentPage.value--;
+    };
 
     /**
      * Fetches the authenticated user's profile, including their wallet balances and active orders.
      */
     const fetchProfile = async (): Promise<number | void> => {
+        isFetching = true;
         loading.value = true;
         try {
             const token = localStorage.getItem('auth_token');
             const res = await axios.get('/api/profile', {
+                params: {
+                    page: currentPage.value,
+                    per_page: perPage.value,
+                    side: filterSide.value,
+                    status: filterStatus.value
+                },
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
             const data = res.data;
             user.value = data.user;
             assets.value = data.assets;
-            orders.value = data.orders || [];
+            
+            // Laravel paginator object for orders
+            orders.value = data.orders.data || [];
+            totalPages.value = data.orders.last_page || 1;
             
             return data.user.id;
         } catch (e: any) {
@@ -42,16 +77,33 @@ export function useProfile() {
             }
         } finally {
             loading.value = false;
+            isFetching = false;
         }
     };
 
     /**
-     * Subscribes to the user's specific wallet channel for real-time WebSocket updates.
+     * Subscribes to the user's specific private channel for real-time WebSocket updates.
      */
     const listenForWalletUpdates = (userId: number): void => {
         if ((window as any).Echo) {
-            (window as any).Echo.channel(`wallet.${userId}`)
+            const token = localStorage.getItem('auth_token');
+            if (token) {
+                (window as any).Echo.connector.options.auth = {
+                    headers: {
+                        Authorization: `Bearer ${token}`
+                    }
+                };
+                (window as any).Echo.connector.options.authEndpoint = '/api/broadcasting/auth';
+            }
+
+            (window as any).Echo.private(`user.${userId}`)
                 .listen('WalletUpdated', () => {
+                    fetchProfile();
+                })
+                .listen('OrderMatched', (e: any) => {
+                    const { success } = useToast();
+                    const trade = e.tradeData;
+                    success(`Trade Filled: ${trade.side.toUpperCase()} ${parseFloat(trade.amount)} ${trade.symbol} @ $${parseFloat(trade.price)}`);
                     fetchProfile();
                 });
         }
@@ -70,6 +122,7 @@ export function useProfile() {
      * Executes the API request to cancel the targeted order.
      */
     const executeCancel = async (): Promise<void> => {
+        const { success, error: toastError } = useToast();
         if (!orderToCancel.value) return;
         const id = orderToCancel.value.id;
         
@@ -80,11 +133,12 @@ export function useProfile() {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             
+            success('Order cancelled successfully.');
             showCancelModal.value = false;
             orderToCancel.value = null;
             await fetchProfile();
         } catch (e: any) {
-            alert(e.response?.data?.message || 'Failed to cancel order.');
+            toastError(e.response?.data?.message || 'Failed to cancel order.');
         } finally {
             cancelling.value = null;
         }
@@ -95,6 +149,13 @@ export function useProfile() {
         user,
         assets,
         orders,
+        filterSide,
+        filterStatus,
+        perPage,
+        currentPage,
+        totalPages,
+        nextPage,
+        prevPage,
         cancelling,
         showCancelModal,
         orderToCancel,

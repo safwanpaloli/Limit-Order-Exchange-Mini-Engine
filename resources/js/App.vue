@@ -17,11 +17,13 @@
       <router-view></router-view>
     </main>
   </div>
+  <ToastManager />
 </template>
 
 <script setup>
 import { onMounted } from 'vue';
 import { useAuth } from './composables/useAuth';
+import ToastManager from './components/ToastManager.vue';
 
 const { isLoggedIn, checkAuth, logout } = useAuth();
 
