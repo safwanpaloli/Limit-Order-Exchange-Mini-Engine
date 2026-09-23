@@ -40,14 +40,15 @@ Copy the `.env.example` file to `.env` and configure your database settings:
 cp .env.example .env
 php artisan key:generate
 ```
-*Ensure you have a MySQL/MariaDB server running and update the `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` in your `.env`.*
+*Note: Ensure you have a MySQL/MariaDB server running. Create an empty database named `limit-order-exchange-mini-engine` (or your preferred name) and update the `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` variables in your `.env` file accordingly.*
 
 ### 3. Database Migration & Seeding
-Run the migrations and seed the database with a test user:
+Run the migrations and seed the database with a test user. It is also recommended to clear your config cache:
 ```bash
+php artisan optimize:clear
 php artisan migrate --seed
 ```
-*This will create a default test user with an initial USD balance.*
+*This will automatically create a default test user (test@example.com / password) with an initial $10,000 USD balance and 1.5 BTC.*
 
 ### 4. Start the Application Servers
 You will need **three** separate terminal windows running simultaneously to power the full stack:
@@ -71,12 +72,26 @@ php artisan reverb:start
 
 ## 🧪 Testing the Flow
 
+### Automated Tests
+You can verify the core matching engine, 1.5% commission calculations, and atomic execution by running the robust backend test suite:
+```bash
+php artisan test
+```
+
+### Manual Walkthrough
 1. Open your browser and navigate to the frontend URL provided by Vite (usually `http://localhost:5173`).
-2. Login using the test user credentials (if seeded) or register a new account.
+2. Login using the test user credentials (`test@example.com` / `password`) or register a new account.
 3. Navigate to the **Trade** page.
 4. Place a Limit Buy or Sell order. Note the immediate USD/Asset locking logic.
-5. Open an incognito window, create a second account, and place a counter-order to cross the spread.
+5. Open an incognito window, create/login to a second account, and place a counter-order to cross the spread.
 6. Watch as the WebSocket server instantly matches the trade, deducts the 1.5% fee, triggers a toast notification, and dynamically updates both users' balances and order statuses in real-time!
+
+## 🎁 Additional Features (Bonus)
+In addition to the core requirements, this engine includes several bonus enhancements:
+- **Server-Side Pagination**: Implemented efficient Eloquent pagination for the Order History table.
+- **Authentication Hardening**: Robust backend API validation for login and registration, complete with rate limiting.
+- **Custom Toast System**: A Vue.js composable-driven Toast notification system for elegant real-time alerts.
+- **Automated E2E Testing**: Includes a rigorous `tests/Feature/UserFlowTest.php` suite that executes and mathematically verifies the entire lifecycle of crossing limit orders.
 
 ## 🔐 Security & Architecture Highlights
 - **Strict Locking**: Utilizes `$query->lockForUpdate()` in `OrderRepository` during balance deduction and trade settlement to ensure mathematical accuracy under high concurrency.
