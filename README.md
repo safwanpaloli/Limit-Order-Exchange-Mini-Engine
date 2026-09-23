@@ -1,58 +1,84 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Limit Order Exchange Mini-Engine
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A full-stack, real-time cryptocurrency limit order exchange application built with **Laravel**, **Vue.js 3 (Composition API)**, and **Tailwind CSS**.
 
-## About Laravel
+## 🚀 Features Implemented
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### 1. Robust Matching Engine (Backend)
+- **Database Architecture**: Implements secure `users`, `assets`, `orders`, and `trades` tables.
+- **Atomic Execution**: Uses database transactions and pessimistic locking (`lockForUpdate()`) to completely prevent race conditions during concurrent order placements and fills.
+- **Automated Matching**: Automatically matches crossing limit orders based on strict Price/Time Priority (FIFO) rules.
+- **Commission System**: A precise **1.5% commission** is dynamically calculated and correctly deducted from trade proceeds (Buyer pays asset fee, Seller pays USD fee).
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+### 2. Real-Time Interactions
+- **Laravel Reverb (Pusher)**: Fully integrated WebSocket broadcasting for real-time exchange capabilities.
+- **Private Channels**: `OrderMatched` events are dispatched on secure private user channels (`private-user.{id}`).
+- **Reactive UI**: The frontend seamlessly intercepts live events and patches the UI instantly—updating wallet balances, updating the orderbook, and dynamically switching order statuses to "Completed" without requiring a browser refresh.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+### 3. Modern Vue.js Frontend
+- **Tech Stack**: Built with Vite, Vue 3, and Tailwind CSS.
+- **Beautiful UI**: Features a custom design system with consistent `8px` (`rounded-lg`) border radii, glassmorphism elements, animated custom dropdowns (`CustomSelect`), and micro-interactions.
+- **Limit Order Form**: Complete trading terminal with BTC/ETH symbol dropdowns, live volume calculations, and strict validation.
+- **Orders & Wallet Overview**: A comprehensive dashboard showing fiat/crypto balances, open/filled/cancelled order history, and advanced real-time status filtering.
 
-## Learning Laravel
+---
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+## 🛠 Setup & Installation Instructions
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
+### 1. Clone & Install Dependencies
 ```bash
-composer require laravel/boost --dev
+# Install PHP dependencies
+composer install
 
-php artisan boost:install
+# Install Node.js dependencies
+npm install
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+### 2. Environment Configuration
+Copy the `.env.example` file to `.env` and configure your database settings:
+```bash
+cp .env.example .env
+php artisan key:generate
+```
+*Ensure you have a MySQL/MariaDB server running and update the `DB_DATABASE`, `DB_USERNAME`, and `DB_PASSWORD` in your `.env`.*
 
-## Contributing
+### 3. Database Migration & Seeding
+Run the migrations and seed the database with a test user:
+```bash
+php artisan migrate --seed
+```
+*This will create a default test user with an initial USD balance.*
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 4. Start the Application Servers
+You will need **three** separate terminal windows running simultaneously to power the full stack:
 
-## Code of Conduct
+**Terminal 1 (Backend API):**
+```bash
+php artisan serve
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+**Terminal 2 (Frontend Vite Server):**
+```bash
+npm run dev
+```
 
-## Security Vulnerabilities
+**Terminal 3 (Real-Time WebSockets Server):**
+```bash
+php artisan reverb:start
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+---
 
-## License
+## 🧪 Testing the Flow
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+1. Open your browser and navigate to the frontend URL provided by Vite (usually `http://localhost:5173`).
+2. Login using the test user credentials (if seeded) or register a new account.
+3. Navigate to the **Trade** page.
+4. Place a Limit Buy or Sell order. Note the immediate USD/Asset locking logic.
+5. Open an incognito window, create a second account, and place a counter-order to cross the spread.
+6. Watch as the WebSocket server instantly matches the trade, deducts the 1.5% fee, triggers a toast notification, and dynamically updates both users' balances and order statuses in real-time!
+
+## 🔐 Security & Architecture Highlights
+- **Strict Locking**: Utilizes `$query->lockForUpdate()` in `OrderRepository` during balance deduction and trade settlement to ensure mathematical accuracy under high concurrency.
+- **Secure WebSockets**: Employs Laravel's `Broadcast::routes(['middleware' => ['auth:sanctum']])` to ensure trades are only ever broadcasted to the specific authenticated parties involved via `Echo.private()`.
+- **Form Hardening**: Frontend validation is backed strictly by backend API validations for price, amount, and sufficient balance requirements.
