@@ -17,9 +17,17 @@ class DatabaseSeeder extends Seeder
     {
         // User::factory(10)->create();
 
-        User::factory()->create([
+        $user = User::factory()->create([
             'name' => 'Test User',
             'email' => 'test@example.com',
+            'password' => bcrypt('password'),
+            'balance' => 10000.00,
+        ]);
+
+        $user->assets()->create([
+            'symbol' => 'BTC',
+            'amount' => 1.5,
+            'locked_amount' => 0,
         ]);
     }
 }
